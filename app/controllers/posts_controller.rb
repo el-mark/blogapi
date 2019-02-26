@@ -1,8 +1,14 @@
 class PostsController < ApplicationController
+    include Secured
+
     before_action :authenticate_user!, only: [:create, :update]
 
     rescue_from Exception do |e|
         render json: {error: e.message}, status: :internal_error
+    end
+
+    rescue_from ActiveRecord::RecordNotFound do |e|
+        render json: {error: e.message}, status: :not_found
     end
 
     rescue_from ActiveRecord::RecordInvalid do |e|
@@ -21,7 +27,7 @@ class PostsController < ApplicationController
 
     # GET /posts/{id}
     def show
-        @post = Post.find(params[:id])
+        @post = Post.find(params[:id]) #ActiveRecord::RecordNotFound
         if (@post.published? || (Current.user && @post.user_id == Current.user.id))
             render json: @post, status: :ok
         else
@@ -38,7 +44,7 @@ class PostsController < ApplicationController
 
     # PUT /posts/{id}
     def update
-        @post = Curren.user.posts.find(params[:id])
+        @post = Current.user.posts.find(params[:id])
         @post.update!(update_params)
         render json: @post, status: :ok
     end
@@ -53,20 +59,4 @@ class PostsController < ApplicationController
         params.require(:post).permit(:title, :content, :published)
     end
 
-    def authenticate_user!
-        # Bearer xxxx
-        token_regex = /Bearer (\w+)/
-        # leer Header de auth, 
-        headers = request.headers
-        # verificar que sea valido, 
-        if headers['Authorization'].present? && headers['Authorization'].match(token_regex)
-            token = headers['Athorization'].match(token_regex)[1]
-            # debemos verificar que el token corresponda a un user
-            if(Current.user = User.finb_by_auth_token(token))
-                return
-            end
-        end
-        # verificar que token responda a un user
-        render json: {error: 'Unauthorized'}, status: :unauthorized
-    end
 end
